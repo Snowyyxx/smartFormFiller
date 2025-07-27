@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Smart Form Filler Settings</title>
+    <style>
+      body { font-family: sans-serif; padding: 16px; }
+      h2 { margin-top: 0; }
+      label { display: block; margin-bottom: 8px; }
+      input[type="file"] { margin-top: 4px; }
+      p#status { margin: 8px 0; }
+      pre {
+        background: #f4f4f4;
+        padding: 8px;
+        max-height: 200px;
+        overflow: auto;
+        white-space: pre-wrap;
+      }
+      button {
+        margin-right: 8px;
+        margin-top: 12px;
+        padding: 6px 12px;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body id="optionsBody">
+    <h2>Smart Form Filler Settings</h2>
+
+    <label>
+      Upload PDF Resume:
+      <input type="file" id="pdfInput" accept=".pdf" />
+    </label>
+    <p id="status">No resume stored.</p>
+
+    <h4>Resume Text Preview</h4>
+    <pre id="preview">(no data)</pre>
+
+    <button id="clearBtn">Clear Resume</button>
+    <button id="testFillBtn">Test Fill Current Form</button>
+
+    <!-- PDF.js -->
+    <script src="pdf.min.js"></script>
+    <!-- Extension logic -->
+    <script src="options.js"></script>
+  </body>
+</html>

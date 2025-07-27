@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Smart Resume Form Filler",
+  "version": "1.0",
+  "permissions": ["storage","activeTab","scripting"],
+  "host_permissions": ["https://docs.google.com/*","https://openrouter.ai/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://docs.google.com/forms/*"],
+      "js": ["content.js"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["pdf.worker.min.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
