@@ -17,7 +17,7 @@
   "content_scripts": [
     {
       "matches": ["*://docs.google.com/forms/*"],
-      "js": ["content.js"]
+      "js": ["config.js", "content.js"]
     }
   ],
   "web_accessible_resources": [
