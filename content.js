@@ -6,6 +6,21 @@ if (typeof API_CONFIG === 'undefined') {
   // Config will be loaded via manifest.json before this script
 }
 
+// 🛡️ Helper function to safely sanitize text for JSON
+function sanitizeTextForJSON(text) {
+  if (!text || typeof text !== 'string') return '';
+  
+  // Remove or replace problematic characters that could break JSON
+  return text
+    .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove control characters
+    .replace(/\\/g, '\\\\')  // Escape backslashes
+    .replace(/"/g, '\\"')    // Escape quotes
+    .replace(/\t/g, ' ')     // Replace tabs with spaces
+    .replace(/\r\n/g, '\n')  // Normalize line endings
+    .replace(/\r/g, '\n')    // Normalize line endings
+    .trim();
+}
+
 chrome.runtime.onMessage.addListener(async (msg) => {
   if (msg.action !== "fillForm") return;
   console.log("[content] Fill form requested");
@@ -32,6 +47,10 @@ chrome.runtime.onMessage.addListener(async (msg) => {
 
   if (debugMode) console.log("[content] Resume loaded, length:", resumeRaw.length);
 
+  // 🛡️ Sanitize resume text to prevent JSON parsing errors
+  const sanitizedResume = sanitizeTextForJSON(resumeRaw);
+  if (debugMode) console.log("[content] Resume sanitized, length:", sanitizedResume.length);
+
   // 2️⃣ Extract & normalize all form questions with enhanced detection
   const items = Array.from(document.querySelectorAll("div[role='listitem']"))
     .map(item => {
@@ -40,11 +59,11 @@ chrome.runtime.onMessage.addListener(async (msg) => {
                   item.querySelector("span[jsname]");
       if (!qEl) return null;
       
-      // Take only the first line, strip trailing asterisks, trim
-      const qText = qEl.innerText
+      // Take only the first line, strip trailing asterisks, trim and sanitize
+      const qText = sanitizeTextForJSON(qEl.innerText
         .split("\n")[0]
         .replace(/\*+$/, "")
-        .trim();
+        .trim());
       
       // Detect field type for better processing
       const fieldType = detectFieldType(item);
@@ -84,7 +103,7 @@ Do NOT include any markdown or code fences.
   `.trim();
   
   const questionData = items.map(x => ({ question: x.question, fieldType: x.fieldType }));
-  const userPayload = JSON.stringify({ resume: resumeRaw, questions: questionData });
+  const userPayload = { resume: sanitizedResume, questions: questionData };
   console.log("[content] Enhanced Prompt ➡️", systemPrompt, userPayload);
 
   // 4️⃣ Call the LLM API with retry logic
@@ -96,6 +115,16 @@ Do NOT include any markdown or code fences.
     try {
       if (debugMode) console.log(`[content] API call attempt ${retryCount + 1}`);
       
+      // 🛡️ Safely stringify user payload with error handling
+      let userPayloadString;
+      try {
+        userPayloadString = JSON.stringify(userPayload);
+      } catch (jsonError) {
+        console.error("[content] JSON stringify error:", jsonError);
+        alert("❌ Error processing resume data. Please try uploading your resume again.");
+        return;
+      }
+      
       const response = await fetch(API_CONFIG.BASE_URL, {
         method: "POST",
         headers: getHeaders(),
@@ -103,7 +132,7 @@ Do NOT include any markdown or code fences.
           model: API_CONFIG.MODEL,
           messages: [
             { role: "system", content: systemPrompt },
-            { role: "user",   content: userPayload }
+            { role: "user",   content: userPayloadString }
           ],
           temperature: API_CONFIG.DEFAULT_TEMPERATURE,
           max_tokens: API_CONFIG.MAX_TOKENS
@@ -132,8 +161,15 @@ Do NOT include any markdown or code fences.
       raw = raw.replace(/^```json\s*/, "").replace(/```$/, "").trim();
       if (debugMode) console.log("[content] Stripped JSON:", raw);
       
-      answersMap = JSON.parse(raw);
-      if (debugMode) console.log("[content] Parsed answersMap:", answersMap);
+      // 🛡️ Safe JSON parsing with better error handling
+      try {
+        answersMap = JSON.parse(raw);
+        if (debugMode) console.log("[content] Parsed answersMap:", answersMap);
+      } catch (parseError) {
+        console.error("[content] JSON parse error:", parseError);
+        console.error("[content] Raw content that failed to parse:", raw);
+        throw new Error(`JSON parsing failed: ${parseError.message}. Raw content: ${raw.substring(0, 200)}...`);
+      }
       
       // Success - break out of retry loop
       break;
